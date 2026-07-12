@@ -1,0 +1,48 @@
+name: Auto Endpoint Scanner
+
+on:
+  schedule:
+    - cron: '0 */4 * * *' # هر ۴ ساعت یک‌بار خودکار
+  workflow_dispatch: # دکمه اجرای دستی
+
+jobs:
+  run-scanner:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Scan WARP Endpoints
+      run: |
+        echo "# لیست ایندپوینت‌های فعال وارپ" > result.txt
+        echo "# آخرین آپدیت: $(date)" >> result.txt
+        echo "" >> result.txt
+
+        IP_PREFIXES=("8.6.112" "188.114.97")
+        PORTS=(928 7281 942 3581 8319 859 878 891 894 1180)
+
+        echo "🚀 شروع اسکن پیشرفته لینوکس روی رنج‌ها..."
+
+        for prefix in "${IP_PREFIXES[@]}"; do
+          for i in {1..254}; do
+            IP="${prefix}.${i}"
+            for port in "${PORTS[@]}"; do
+              if timeout 0.5 sh -c "echo -n '' > /dev/udp/${IP}/${port}" 2>/dev/null; then
+                echo "${IP}:${port}" >> result.txt
+                echo "[✔] پیدا شد -> ${IP}:${port}"
+              fi
+            done
+          done
+        done
+        
+        echo "✅ اسکن تمام شد."
+
+    - name: Commit and Push Results
+      run: |
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+        git add result.txt
+        git commit -m "🔄 آپدیت خودکار ایندپوینت‌های وارپ" || exit 0
+        git push
+        
